@@ -1,0 +1,716 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+## Trans Health in Cancer Genetic Counseling
+> *Xuechun Liu, Liwen Zhang, Kailun Huang*  
+> *TF mentor: David Reynolds*  
+> 2/10/2018 
+
+### 1.	Background and Data Format  
+
+##### 1.1	Project Overview  
+We get this project from our client, Tala Berro, a second-year genetic counseling student at Boston University. This project is her master¡¯s thesis and is about cancer genetic counselors' anticipated behaviors when counseling transgender patients. Study participation involves a brief web-based survey and the participants are generated from genetic counselors in the Cancer Special Interest Group.   
+
+Factors we included in our consulting project:  
+
++ Four cases studies (multiple choices):   
+  
+    - Participants¡¯ answers  
+    - Correct answers (provided by our client)
+\
+\
++ Demographics of participants  
+
++ Participants¡¯ clinician experience  
+
+The aim of our consulting: Calculate the percentage of correctness of each participant for each case and analyze results covariant with participants¡¯ demographics and clinician experience.  
+
+##### 1.2	Data Management  
+In this project, we use the Jaccard index, which measures similarity between finite sample sets, as our dependent variable. We calculate our Jaccard index using the size of the intersection of participants¡¯ responses and correct answers, divided by the size of their union. Other variables, such as age, gender, number of years spent working in a cancer setting, serve as covariates to fit models.  
+
+##### 1.3 Conclusion  
+\
+\
+\
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(scales)
+library(stringr)
+library(pander)
+library(gridExtra)
+library(dplyr)
+library(data.table)
+t = read.csv("Trans Health in Cancer Genetic Counseling_12.5.17.csv", header  = TRUE)
+t = t[-c(1:4),] # delete first two rows
+
+# Q7: Case 3
+# Q9: Case 4
+# Q10: Case 5
+# Q35: Case 6
+# Q14: trans specific training
+# Q17: age
+# Q19: how many years worked in cancer setting
+# Q21: gender identity
+# Q3: number of patients seen
+# Q4: seen any trans
+# Q25: region
+# Q24: race
+
+tr = select(t, Q7, Q9, Q10, Q35, Q14, Q15, Q17, Q19, Q21, Q3, Q4, Q25, Q24, Q16, Q43_1, Q32)
+tr = droplevels(tr)
+tr$Q17 <- as.character(tr$Q17) 
+tr$Q17 <- as.numeric(tr$Q17) 
+tr$Age_Band <- ifelse(tr$Q17 < 25, "<= 24", ifelse(tr$Q17 < 35, "25 - 34", ifelse(tr$Q17 < 45, "35 - 44", ifelse(tr$Q17 < 55, "45 - 54", ifelse(tr$Q17 < 65, "55 - 64", ifelse(tr$Q17 > 64, ">= 65", "Blank")))))) # age bands
+# tr <- tr[-1,]
+```
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+# create new dataframe that excludes cases where case responses are blank
+tr_2 = tr[!(tr$Q7 == "" | tr$Q9 == "" | tr$Q10 == "" | tr$Q35 == ""),]
+```
+
+### 2.  Exploratory Data Analysis
+
+We begin our exploratory analysis below by visualizing heat maps of the response frequencies associated with comfort levels pertaining to transgender terminology.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+## Q1
+# create data frame for heat map
+# remove useless row
+t1 = t[-c(1:3),]
+t1 <- droplevels(t1)
+# count frequency df for Q1.1-Q1.13
+hmap_df <- table(1,2,3,4,5)
+for(i in 6: 18) {
+  qq <- table(t1[, i])
+  hmap_df <- rbind(hmap_df, qq)
+}
+# remove useless row and col
+hmap_df <- hmap_df[-1,-1]
+# create column names
+colnames(hmap_df) <- c("1-very uncomfortable", "2-uncomfortable", "3-neutral", "4-comfortable", "5-very comfortable")
+# create row names
+#rownames(hmap_df) <- c(paste("Q1.", seq(1:13), sep = ""))
+rownames(hmap_df) <- c("Cisgender", "Gender", "Gender Expression", "Gender Identity", "LGBTQ", "Nonbinary/Genderqueer", "Queer", "Sex", "Orientation", "Transgender", "Transgender Man", "Transgender Woman", "Gender Affirmation Therapy")
+
+# plot heat map
+library(lattice)
+levelplot(hmap_df, col.regions = colorRampPalette(c("dodgerblue", "white", "orange")), scale=list(x=list(rot=35)), xlab = "Words", ylab = "Comfort Level", main = "Comfort Level of Accurately Using Selected Words")
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+## Q40
+
+# create data frame for heat map
+# remove useless row
+t1 = t[-c(1:3),]
+t1 <- droplevels(t1)
+# count frequency df for Q1.1-Q1.13
+hmap_df40 <- table(1,2,3,4,5)
+for(i in 20: 22) {
+  qq <- table(t1[, i])
+  hmap_df40 <- rbind(hmap_df40, qq)
+}
+# remove useless row and col
+hmap_df40 <- hmap_df40[-1,-1]
+# create column names
+colnames(hmap_df40) <- c("1-very uncomfortable", "2-uncomfortable", "3-neutral", "4-comfortable", "5-very comfortable")
+# create row names
+#rownames(hmap_df) <- c(paste("Q1.", seq(1:13), sep = ""))
+rownames(hmap_df40) <- c("Pronouns they use", "Hormone use", "Gender affirmation surgeries")
+
+# plot heat map
+library(lattice)
+levelplot(hmap_df40, col.regions = colorRampPalette(c("dodgerblue", "white", "orange")), scale=list(x=list(rot=35)), xlab = "Words", ylab = "Comfort Level", main = "Comfort Level of Asking a Trans/Nonbinary Patient Selected Words")
+```
+
+Next, we explore the distributions of responses pertaining broadly to the experience and demographics of respondents. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+resp = tr$Q15[-which(tr$Q15 == "")]
+resp = data.frame(resp)
+
+ggplot(resp)+aes(x = resp) + 
+  geom_bar(fill='blue') +
+  theme(legend.position="none") + 
+  labs(x = "training experience", y = "frequency", title = "Education/ Training Related to Transgender Health")
+
+```
+
+Note here that response 1 corresponds to a genetic counseling program; response 2 corresponds to a conference; response 3 corresponds to workshops; response 4 corresponds with education specific to trans health in cancer; response 5 is other.
+
+It shows that most participants only go to Genetic Counseling Graduate Program, workshops and other placs to study. Seldom of them have multiple training experiences.
+##Q43 Please indicate if you think this would be beneficial or not beneficial for your practice.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+resp = tr$Q43_1[-which(tr$Q43_1 == "")]
+resp = data.frame(resp)
+
+ggplot(resp)+aes(x = factor(resp)) + 
+  geom_bar(fill='blue') +
+  theme(legend.position="none") + 
+  labs(x = "Q43", y = "frequency", title = "Q43: Would it be beneficial to take anatomical organ inventory?") + 
+  scale_x_discrete(labels = c("Not Beneficial","Slightly Beneficial","Unsure","Moderately Beneficial","Very Benefical"))
+```
+It shows that most participants think WPATH suggestion taht take anatomical organ inventory is useful and is beneficial to their practice.
+
+
+## Q17 Participant age
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+resp = tr$Age_Band[complete.cases(tr$Age_Band)]
+resp = data.frame(resp)
+
+
+ggplot(resp)+aes(x = factor(resp)) + 
+  geom_bar(fill='blue') +
+  theme(legend.position="none") + 
+  labs(x = "age", y = "frequency", title = "Age Distribution")
+  #scale_x_discrete(labels = c("<=24","25-34","35-44"))
+```
+It shows that most participants are young and most of them are 25 to 34 years old.
+##Q19 years worked in cancer settings
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+resp = tr$Q19[-which(tr$Q19 == "")]
+resp = data.frame(resp)
+
+
+ggplot(resp)+aes(x = factor(resp)) + 
+  geom_bar(fill='blue') +
+  theme(legend.position="none") + 
+  labs(x = "years in cancer", y = "frequency", title = "Number of Years spent in Cancer Setting") + 
+  scale_x_discrete(labels = c("1-2","3-5","6-10",">10"))
+```
+It shows that most partipants are new to this field that most of them only have 1 to 2 years experiences. About one third of people spent more than 6 years in cancer setting.
+
+
+##Q25 Pratice Region
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+resp = tr$Q25[-which(tr$Q25 == "")]
+resp = data.frame(resp)
+
+
+ggplot(resp)+aes(x = factor(resp)) + 
+  geom_bar(fill='blue') +
+  theme(legend.position="none") + 
+  labs(x = "region", y = "frequency", title = "Region")
+```
+
+Note that the responses for this question are: 
+
+CT,MA,ME,NH,RI,VT,CN Maritime Provinces (1)  
+DC,DE,MD,NJ,NY,PA,VA,WV,PR,VI,Quebec (2)  
+AL,FL,GA,KY,LA,MS,NC,SC,TN (3)  
+AR,IA,IL,IN,KS,MI,MN,MO,ND,NE,OH,OK,SD,WI,Ontario (4)  
+AZ,CO,MT,NM,TX,UT,WY,Alberta, Manitoba, Sask. (5)  
+AK,CA,HI,ID,NV,OR,WA,British Columbia (6)  
+
+It shows that most participants practice in "AR,IA,IL,IN,KS,MI,MN,MO,ND,NE,OH,OK,SD,WI,Ontario" ares and all particpants praactice in United States.
+
+## Q16 Would it be more beneficial to receive more training on transhealth.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+resp = tr$Q16[-which(tr$Q16 == "")]
+resp = data.frame(resp)
+
+ggplot(resp)+aes(x = factor(resp)) + 
+  geom_bar(fill='blue') +
+  theme(legend.position="none") + 
+  labs(x = "Q16", y = "frequency", title = "Would it be more benefcial to receive more training on transhealth?") + 
+  scale_x_discrete(labels = c("Yes","No","Not Sure"))
+```
+It shows that most participants think it is more beneficial to receive more training on transhealth.
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+#### create jaccard response for each case (3,4,5,6a, 6b)
+
+# Case 3 -- Question 7
+Q7 = lapply(strsplit(as.character(tr$Q7),","),function(x)as.integer(x))
+
+Q7_c = c(1,2,5) # correct answers
+Q7_p = NULL
+
+for(i in 1:length(tr$Q7)) {
+  intersect = intersect(Q7[[i]], Q7_c)
+  union = union(Q7[[i]], Q7_c)
+  Q7_p[i] = length(intersect) / length(union)
+}
+
+# Case 4 -- Question 9
+Q9 = lapply(strsplit(as.character(tr$Q9),","),function(x)as.integer(x))
+
+Q9_c = c(1, 2, 6)
+Q9_p = NULL
+
+for(i in 1:length(tr$Q9)) {
+  intersect = intersect(Q9[[i]], Q9_c)
+  union = union(Q9[[i]], Q9_c)
+  Q9_p[i] = length(intersect) / length(union)
+}
+
+# Case 5 -- Question 10
+Q10 = lapply(strsplit(as.character(tr$Q10),","),function(x)as.integer(x))
+
+Q10_c = c(1, 2, 3, 4, 6)
+Q10_p = NULL
+
+for(i in 1:length(tr$Q10)) {
+  intersect = intersect(Q10[[i]], Q10_c)
+  union = union(Q10[[i]], Q10_c)
+  Q10_p[i] = length(intersect) / length(union)
+}
+
+#Case 6 -- Question 35 with the answer "1, 2, 4"
+
+Q35 = lapply(strsplit(as.character(tr$Q35),","),function(x)as.integer(x))
+
+Q35_c1 = c(1, 2, 4)
+Q35_p1 = NULL
+
+for(i in 1:length(tr$Q35)) {
+  intersect = intersect(Q35[[i]], Q35_c1)
+  union = union(Q35[[i]], Q35_c1)
+  Q35_p1[i] = length(intersect) / length(union)
+}
+
+# Case 6 -- Question 35 with the answer "1, 2, 4, 5"
+Q35_c2 = c(1, 2, 4, 5)
+Q35_p2 = NULL
+
+for(i in 1:length(tr$Q35)) {
+  intersect = intersect(Q35[[i]], Q35_c2)
+  union = union(Q35[[i]], Q35_c2)
+  Q35_p2[i] = length(intersect) / length(union)
+}
+#Q35_p2
+```
+
+#### Case Study Analysis
+
+First, we see mean performance by case study for all respondents and also excluding blank responses.
+
+```{r, echo=FALSE, warning=FALSE}
+
+c1=mean(Q7_p[-which(lapply(Q7, length)==0)])
+c2=mean(Q9_p[-which(lapply(Q9, length)==0)])
+c3=mean(Q10_p[-which(lapply(Q10, length)==0)])
+c4=mean(Q35_p1[-which(lapply(Q35, length)==0)])
+c5=mean(Q35_p2[-which(lapply(Q35, length)==0)])
+
+d1=mean(Q7_p)
+d2=mean(Q9_p)
+d3=mean(Q10_p)
+d4=mean(Q35_p1)
+d5=mean(Q35_p2)
+
+
+n = c("Case 3", "Case 4", "Case 5", "Case 6a", "Case 6b")
+
+df = data.frame(cbind(n, round(c(c1,c2,c3,c4),2), round(c(d1,d2,d3,d4,d5),2)))
+
+names(df) = c("Case", "Avg. JI (excl. blank)", "Avg. JI (incl. blanks)")
+
+pander(df)
+
+```
+
+
+
+
+#### Visualizations for Case Study 3
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+#tr_2$Q17 <- as.numeric(tr_2$Q17) 
+#tr_2$Age_Band <- ifelse(tr_2$Q17 < 25, "<= 24", ifelse(tr_2$Q17 < 35, "25 - 34", ifelse(tr_2$Q17 < 45, "35 - 44", ifelse(tr_2$Q17 < 55, "45 - 54", ifelse(tr_2$Q17 < 65, "55 - 64", ifelse(tr_2$Q17 > 64, ">= 65", "Blank")))))) # age bands
+
+
+
+Q7df <- data.frame(Q7_p, tr$Q14, tr$Q17, tr$Q19, tr$Q21, tr$Age_Band)
+colnames(Q7df)[1:6] <- c("p", "Training", "Age", "Experience", "GI", "Age_Band")
+Q7df$Correct <- ifelse(Q7df$p == 1, 3, ifelse(Q7df$p == 2/3, 2, ifelse(Q7df$p == 1/3, 1, 0)))
+Q7df$Question <- c(7)
+
+## Response Proportions by Training
+
+p1 = ggplot(Q7df, aes(x = factor(Training), y = p, color = factor(Training))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Education or Training related to Transgender Health", y = "Jaccard Index", title = "Response Prop. by Training") +
+  scale_x_discrete(labels = c("Blank","Yes","No")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Age Band
+
+p2 = ggplot(Q7df, aes(x = factor(Age_Band), y = p, color = factor(Age_Band))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Age", y = "Jaccard Index", title = "Response Prop. by Age Band") +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Experience
+
+p3 = ggplot(Q7df, aes(x = factor(Experience), y = p, color = factor(Experience))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Years of Experience", y = "Jaccard Index", title = "Response Prop. by Experience") +
+  scale_x_discrete(labels = c("Blank","1-2","3-5", "6-10", ">10")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Gender Identity
+p4 = ggplot(Q7df, aes(x = factor(GI), y = p, color = factor(GI))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Gender Identity", y = "Jaccard Index", title = "Response by Gender Identity") +
+  scale_x_discrete(labels = c("Blank","Man","Woman", "Trans Man", "Trans Woman", "Non-Binary", "Decline to Answer", "Other")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+For this case, education to transgender health seems does not affect Jaccard Index. It is because for people who answer whether yes or no to this question, they got similar distribution of jaccard index. Age could be a key factor since with age increases, jaccard index distribution seems go up. Experiences and gender identity also seem does not affect jaccard index.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+## Case 3 -- Question 7
+
+Q7_m = NULL
+for(i in 1:length(tr_2$Q7)) {
+  Q7_m[[i]] = ifelse(length(setdiff(Q7_c, Q7[[i]])) > 0, setdiff(Q7_c, Q7[[i]]), NA)
+}
+Q7_m = Q7_m[!is.na(Q7_m)]
+Q7_d = data.frame(Q7_m)
+
+ggplot(Q7_d, aes(x = Q7_d$Q7_m)) + 
+  geom_histogram(aes(fill = ..count..)) + 
+  stat_bin(geom="text", aes(label=ifelse(..count.. > 0, ..count.., "")) , vjust = -0.5) + 
+  labs(title = "Distribution of Missing Answers for Case 3", x = "Missing Answer", y = "Frequency") +
+  scale_x_continuous(breaks = 1:5, labels = 1:5) +
+  theme(legend.position="none")
+```
+
+
+#### Visualizations for Case Study 4
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+Q9df <- data.frame(Q9_p, tr$Q14, tr$Q17, tr$Q19, tr$Q21, tr$Age_Band)
+colnames(Q9df)[1:6] <- c("p", "Training", "Age", "Experience", "GI", "Age_Band")
+Q9df$Correct <- ifelse(Q9df$p == 1, 3, ifelse(Q9df$p == 2/3, 2, ifelse(Q9df$p == 1/3, 1, 0)))
+Q9df$Question <- c(9)
+
+## Response Proportions by Training
+
+p1 = ggplot(Q9df, aes(x = factor(Training), y = p, color = factor(Training))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Education or Training related to Transgender Health", y = "Jaccard Index", title = "Response Prop. by Training") +
+  scale_x_discrete(labels = c("Blank","Yes","No")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Age Band
+
+p2 = ggplot(Q9df, aes(x = factor(Age_Band), y = p, color = factor(Age_Band))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Age", y = "Jaccard Index", title = "Response Prop. by Age Band") +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Experience
+
+p3 = ggplot(Q9df, aes(x = factor(Experience), y = p, color = factor(Experience))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Years of Experience", y = "Jaccard Index", title = "Response Prop. by Experience") +
+  scale_x_discrete(labels = c("Blank","1-2","3-5", "6-10", ">10")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Gender Identity
+p4 = ggplot(Q9df, aes(x = factor(GI), y = p, color = factor(GI))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Gender Identity", y = "Jaccard Index", title = "Response by Gender Identity") +
+  scale_x_discrete(labels = c("Blank","Man","Woman", "Trans Man", "Trans Woman", "Non-Binary", "Decline to Answer", "Other")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+For this case, education to transgender health seems affect Jaccard Index. Participants who have training before tend to have higher jaccard index compare to those have not. index. Age could be a key factor since with age increases, jaccard index score seems go down. Participants who have more experiences tend to have lower jaccard index. Also, women are doing better than men in this case.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+## Case 4 -- Question 9
+Q9_m = NULL
+for(i in 1:length(tr_2$Q9)) {
+  Q9_m[[i]] = ifelse(length(setdiff(Q9_c, Q9[[i]])) > 0, setdiff(Q9_c, Q9[[i]]), NA)
+}
+Q9_m = Q9_m[!is.na(Q9_m)]
+Q9_d = data.frame(Q9_m)
+ggplot(Q9_d, aes(x = Q9_d$Q9_m)) + 
+  geom_histogram(aes(fill = ..count..)) + 
+  stat_bin(geom="text", aes(label=ifelse(..count.. > 0, ..count.., "")) , vjust = -0.5) + 
+  labs(title = "Distribution of Missing Answers for Case 4", x = "Missing Answer", y = "Frequency") + 
+  scale_x_continuous(breaks = 1:6, labels = 1:6) +
+  theme(legend.position="none")
+```
+
+
+
+#### Case 5 Visualizations
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+Q10df <- data.frame(Q10_p, tr$Q14, tr$Q17, tr$Q19, tr$Q21, tr$Age_Band)
+colnames(Q10df)[1:6] <- c("p", "Training", "Age", "Experience", "GI", "Age_Band")
+Q10df$Correct <- ifelse(Q10df$p == 1, 5, ifelse(Q10df$p == .8, 4, ifelse(Q10df$p == .6, 3, ifelse(Q10df$p == .4, 2, ifelse(Q10df$p == .2, 1, 0)))))
+Q10df$Question <- c(10)
+
+## Response Proportions by Training
+
+p1 = ggplot(Q10df, aes(x = factor(Training), y = p, color = factor(Training))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Education or Training related to Transgender Health", y = "Jaccard Index", title = "Response Prop. by Training") +
+  scale_x_discrete(labels = c("Blank","Yes","No")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Age Band
+
+p2 = ggplot(Q10df, aes(x = factor(Age_Band), y = p, color = factor(Age_Band))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Age", y = "Jaccard Index", title = "Response Prop. by Age Band") +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Experience
+
+p3 = ggplot(Q10df, aes(x = factor(Experience), y = p, color = factor(Experience))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Years of Experience", y = "Jaccard Index", title = "Response Prop. by Experience") +
+  scale_x_discrete(labels = c("Blank","1-2","3-5", "6-10", ">10")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Gender Identity
+p4 = ggplot(Q10df, aes(x = factor(GI), y = p, color = factor(GI))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Gender Identity", y = "Jaccard Index", title = "Response by Gender Identity") +
+  scale_x_discrete(labels = c("Blank","Man","Woman", "Trans Man", "Trans Woman", "Non-Binary", "Decline to Answer", "Other")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+In this case, all four factors seem does not affect jaccard index. It is because each factor responses has similar distribution. 
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+## Case 5 -- Question 10
+Q10_m = NULL
+for(i in 1:length(tr_2$Q10)) {
+  Q10_m[[i]] = ifelse(length(setdiff(Q10_c, Q10[[i]])) > 0, setdiff(Q10_c, Q10[[i]]), NA)
+}
+Q10_m = Q10_m[!is.na(Q10_m)]
+Q10_d = data.frame(Q10_m)
+ggplot(Q10_d, aes(x = Q10_d$Q10_m)) + 
+  geom_histogram(aes(fill = ..count..)) + 
+  stat_bin(geom="text", aes(label=ifelse(..count.. > 0, ..count.., "")) , vjust = -0.5) + 
+  labs(title = "Distribution of Missing Answers for Case 5", x = "Missing Answer", y = "Frequency") + 
+  scale_x_continuous(breaks = 1:6, labels = 1:6) +
+  theme(legend.position="none")
+```
+
+
+#### Case 6 Visualizations (without Q5)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+Q35p1df <- data.frame(Q35_p1, tr$Q14, tr$Q17, tr$Q19, tr$Q21, tr$Age_Band)
+colnames(Q35p1df)[1:6] <- c("p", "Training", "Age", "Experience", "GI", "Age_Band")
+Q35p1df$Correct <- ifelse(Q35p1df$p == 1, 3, ifelse(Q35p1df$p == 2/3, 2, ifelse(Q35p1df$p == 1/3, 1, 0)))
+Q35p1df$Question <- c(35.1)
+
+## Response Proportions by Training
+
+p1 = ggplot(Q35p1df, aes(x = factor(Training), y = p, color = factor(Training))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Education or Training related to Transgender Health", y = "Jaccard Index", title = "Response Prop. by Training") +
+  scale_x_discrete(labels = c("Blank","Yes","No")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Age Band
+
+p2 = ggplot(Q35p1df, aes(x = factor(Age_Band), y = p, color = factor(Age_Band))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Age", y = "Jaccard Index", title = "Response Prop. by Age Band") +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Experience
+
+p3 = ggplot(Q35p1df, aes(x = factor(Experience), y = p, color = factor(Experience))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Years of Experience", y = "Jaccard Index", title = "Response Prop. by Experience") +
+  scale_x_discrete(labels = c("Blank","1-2","3-5", "6-10", ">10")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Gender Identity
+p4 = ggplot(Q35p1df, aes(x = factor(GI), y = p, color = factor(GI))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Gender Identity", y = "Jaccard Index", title = "Response by Gender Identity") +
+  scale_x_discrete(labels = c("Blank","Man","Woman", "Trans Man", "Trans Woman", "Non-Binary", "Decline to Answer", "Other")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+In this case, all four factors seem does not affect jaccard index. It is because each factor responses has similar distribution. 
+#### Case 6 Visualizations (with Q5)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+Q35p2df <- data.frame(Q35_p2, tr$Q14, tr$Q17, tr$Q19, tr$Q21, tr$Age_Band)
+colnames(Q35p2df)[1:6] <- c("p", "Training", "Age", "Experience", "GI", "Age_Band")
+Q35p2df$Correct <- ifelse(Q35p2df$p == 1, 4, ifelse(Q35p2df$p == .75, 3, ifelse(Q35p2df$p == .5, 2, ifelse(Q35p2df$p == .25, 1, 0))))
+Q35p2df$Question <- c(35.2)
+
+## Response Proportions by Training
+
+p1 = ggplot(Q35p2df, aes(x = factor(Training), y = p, color = factor(Training))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Education or Training related to Transgender Health", y = "Jaccard Index", title = "Response Prop. by Training") +
+  scale_x_discrete(labels = c("Blank","Yes","No")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Age Band
+
+p2 = ggplot(Q35p2df, aes(x = factor(Age_Band), y = p, color = factor(Age_Band))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Age", y = "Jaccard Index", title = "Response Prop. by Age Band") +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Experience
+
+p3 = ggplot(Q35p2df, aes(x = factor(Experience), y = p, color = factor(Experience))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Years of Experience", y = "Jaccard Index", title = "Response Prop. by Experience") +
+  scale_x_discrete(labels = c("Blank","1-2","3-5", "6-10", ">10")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+## Response Proportions by Gender Identity
+p4 = ggplot(Q35p2df, aes(x = factor(GI), y = p, color = factor(GI))) + 
+  geom_boxplot() +
+  theme(legend.position="none") + 
+  labs(x = "Gender Identity", y = "Jaccard Index", title = "Response Prop. by Gender Identity") +
+  scale_x_discrete(labels = c("Blank","Man","Woman", "Trans Man", "Trans Woman", "Non-Binary", "Decline to Answer", "Other")) +
+  geom_jitter(shape=1, position=position_jitter(0.2))
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+In this case, women tend to have higher jaccard index which means gender identity might be a key factor to affect jaccard index. However, other three factors are not showing tendency on affecting jaccard index.
+#### Case 7 Visualization
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+resp = tr$Q32[-which(tr$Q32=="")]
+resp = data.frame(resp)
+
+ggplot(resp)+aes(x = factor(resp)) + 
+  geom_bar(fill='blue') +
+  theme(legend.position="none") + 
+  labs(x = "Case 7 Response Distribution (Excluding Blanks)", y = "frequency", title = "Case 7 Response")
+```
+
+
+### 3.  Modeling 
+
+The potential covariates broadly fall into two main categories:  
+
+**Clinician Experience**  
+1. Number of patients seen each month (<40, ~40, >40)  
+2. Number of years spent working in a cancer setting  
+3. Seen any transgender patients?  
+4. Any transgender specific education/ training?  
+
+**Clinician Demographics**  
+1. Age  
+2. Gender identity  
+3. Sexual orientation  
+4. Race  
+5. Region of practice  
+
+Based on these, we fit a multiple linear regression model for each cases. In the model, jaccard Index was used as response variables and all the potential covariates mentioned above were used as predictors. In addition, since the survey was designed to stop when an answer is missing, we exclude all blank responses before we fit the model.
+
+Here is our model:
+
+$$Jaccard \ Index \sim \beta_0 + \beta_1 specific\_training + \beta_2 Age\_Band + \beta_3 years\_experience + \\\beta_4 gender + \beta_5 n\_patients + \beta_6seen\_trans + \beta_7race + \beta_8region + Îµ$$
+
+#### Case Sutdy 3 Linear Model
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Q7: Case 3
+# Q9: Case 4
+# Q10: Case 5
+# Q35: Case 6
+# Q14: trans specific training
+# Q17: age
+# Q19: how many years worked in cancer setting
+# Q21: gender identity
+# Q3: number of patients seen
+# Q4: seen any trans
+# Q25: region
+# Q24: race
+
+# add J-Index columns
+tr$Q7_p <- Q7_p
+tr$Q9_p <- Q9_p
+tr$Q10_p <- Q10_p
+tr$Q35_p1 <- Q35_p1
+# remove blank responses
+complete = complete.cases(tr)
+tr_mod = tr[complete,]
+# rename columns
+setnames(tr_mod, old = c("Q14", "Q19", "Q21", "Q3", "Q4", "Q24", "Q25"), new = c("training", "years", "gender", "n_patients", "seen_trans", "race", "region"))
+
+
+m3 <- lm(Q7_p[complete] ~ training + factor(Age_Band) + years + gender + 
+           n_patients + seen_trans + race + region, data = tr_mod)
+pander(m3)
+
+# residual plot
+plot(m3)
+```
+
+#### Case Sutdy 4 Linear Model
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+m4 <- lm(Q9_p[complete] ~ training + factor(Age_Band) + years + gender + 
+           n_patients + seen_trans + race + region, data = tr_mod)
+pander(m4)
+```
+
+#### Case Sutdy 5 Linear Model
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+m5 <- lm(Q10_p[complete] ~ training + factor(Age_Band) + years + gender + 
+           n_patients + seen_trans + race + region, data = tr_mod)
+pander(m5)
+```
+
+#### Case Sutdy 6 Linear Model
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+m6 <- lm(Q35_p1[complete] ~ training + factor(Age_Band) + years + gender + 
+           n_patients + seen_trans + race + region, data = tr_mod)
+pander(m6)
+```
+
+#### Aggregate Linear Model
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+y <- Q35_p1[complete]+Q10_p[complete]+Q9_p[complete]+Q7_p[complete]
+m_agg <- lm(y ~ training + factor(Age_Band) + years + gender + 
+           n_patients + seen_trans + race + region, data = tr_mod)
+pander(m_agg)
+```
+
+As we can see from the tables above, none of the potential covariates in any of the models are significant at the level of 0.05, which means we fail to reject all the null hypotheses. Thus, we can conclude that neither clinician experience (including number of patients seen each month, number of years spent working in a cancer setting, seen any transgender patients, got any transgender specific education/training), nor clinician demographics (age, gender, sexual orientation, race, region of practice) is significant in predicting clinicians' scores in each case.
+
